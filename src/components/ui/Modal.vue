@@ -75,7 +75,7 @@
             <!-- Modal footer -->
             <div
               v-if="$slots.footer"
-              class="px-4 py-3 border-t border-gray-200 sm:px-6 sm:flex sm:flex-row-reverse"
+              class="gap-4 px-4 py-3 space-x-2 border-t border-gray-200 sm:px-6 sm:flex sm:flex-row-reverse"
             >
               <slot name="footer" />
             </div>

@@ -2,7 +2,10 @@
   <Card class="h-full">
     <div class="relative">
       <img
-        :src="recipe.food?.image_url || '/images/default-recipe.jpg'"
+        :src="
+          `${websiteUrlStorage}${recipe.food?.image_path}` ||
+          `${websiteUrlImage}default-food.png`
+        "
         :alt="recipe.title"
         class="object-cover w-full h-48"
         @error="handleImageError"
@@ -40,8 +43,8 @@
         </div>
       </div>
 
-      <div class="flex items-center justify-between">
-        <div class="flex items-center space-x-2">
+      <div class="flex-wrap items-center justify-between">
+        <div class="grid items-center grid-cols-2 space-x-2">
           <span
             class="px-2 py-1 text-xs text-orange-800 bg-orange-100 rounded-full"
           >
@@ -54,12 +57,14 @@
           </span>
         </div>
 
-        <router-link
-          :to="`/recipes/${recipe.id}`"
-          class="text-sm font-medium text-primary hover:text-orange-600"
-        >
-          View Recipe
-        </router-link>
+        <div class="p-2 mt-2 text-center border rounded-lg border-primary">
+          <router-link
+            :to="`/recipes/${recipe.id}`"
+            class="text-sm font-medium text-primary hover:text-orange-600"
+          >
+            View Recipe
+          </router-link>
+        </div>
       </div>
     </div>
   </Card>
@@ -69,6 +74,8 @@
 import { computed } from 'vue';
 import { useUserStore } from '@/stores/user';
 import Card from '@/components/ui/Card.vue';
+const websiteUrlStorage = import.meta.env.VITE_WEBSITE_URL_STORAGE;
+const websiteUrlImage = import.meta.env.VITE_WEBSITE_URL_IMAGE;
 
 // Icons
 const HeartIconOutline = {
@@ -134,8 +141,7 @@ const toggleFavorite = async () => {
     });
   }
 };
-
 const handleImageError = (event) => {
-  event.target.src = '/images/default-recipe.jpg';
+  event.target.src = websiteUrlImage + 'default-food.png';
 };
 </script>

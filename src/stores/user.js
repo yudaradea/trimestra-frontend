@@ -1,7 +1,7 @@
-// src/stores/user.js
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import api from '@/utils/api';
+import { data } from 'autoprefixer';
 
 export const useUserStore = defineStore('user', () => {
   const profile = ref(null);
@@ -335,6 +335,69 @@ export const useUserStore = defineStore('user', () => {
     }
   };
 
+  const fetchDiaryEntries = async (date = null) => {
+    try {
+      const params = date ? { date } : {};
+      const response = await api.get('/diary', { params });
+
+      if (response.data.success) {
+        diaryEntries.value =
+          response.data.data.entries || response.data.data || [];
+        return { success: true, data: diaryEntries.value };
+      } else {
+        return { success: false, error: response.data.message };
+      }
+    } catch (error) {
+      console.error('Failed to fetch diary entries:', error);
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to fetch diary entries',
+      };
+    }
+  };
+
+  const createDiaryEntry = async (entryData) => {
+    try {
+      const response = await api.post('/diary', entryData);
+
+      if (response.data.success) {
+        // Refresh diary entries dan summary
+        await fetchDiaryEntries();
+        await fetchDailySummary(entryData.date);
+
+        return { success: true, data: response.data.data };
+      } else {
+        return { success: false, error: response.data.message };
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to create diary entry',
+      };
+    }
+  };
+
+  const deleteDiaryEntry = async (entryId) => {
+    try {
+      const response = await api.delete(`/diary/${entryId}`);
+
+      if (response.data.success) {
+        // Refresh diary entries dan summary
+        await fetchDiaryEntries();
+        await fetchDailySummary(new Date().toISOString().split('T')[0]);
+
+        return { success: true };
+      } else {
+        return { success: false, error: response.data.message };
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to delete diary entry',
+      };
+    }
+  };
+
   // ✅ TAMBAHKAN: Reset store
   const reset = () => {
     user.value = null;
@@ -386,5 +449,8 @@ export const useUserStore = defineStore('user', () => {
     reset,
     syncTargetCalories,
     getUserTargetCalories,
+    createDiaryEntry,
+    deleteDiaryEntry,
+    fetchDiaryEntries,
   };
 });

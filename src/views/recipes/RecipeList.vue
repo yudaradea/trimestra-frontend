@@ -138,7 +138,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useFoodStore } from '@/stores/food';
 import RecipeCard from '@/components/shared/RecipeCard.vue';
@@ -166,7 +166,7 @@ const XIcon = {
 
 const BookOpenIcon = {
   template:
-    '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>',
+    '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>',
 };
 
 // Stores & Router
@@ -187,9 +187,9 @@ const filters = ref({
   servings: '',
 });
 
-// Computed properties
+// ✅ PERBAIKAN: Computed properties yang benar
 const filteredRecipes = computed(() => {
-  return foodStore.recipes;
+  return foodStore.recipes || [];
 });
 
 // Methods
@@ -201,38 +201,44 @@ const openFilter = () => {
   showFilters.value = true;
 };
 
-const applyFilters = () => {
-  // Apply filters logic
+// ✅ PERBAIKAN: Apply filters dengan fetch data baru
+const applyFilters = async () => {
   showFilters.value = false;
-  fetchRecipes();
+  page.value = 1;
+  await fetchRecipes();
 };
 
-const clearFilters = () => {
+// ✅ PERBAIKAN: Clear filters dengan fetch data baru
+const clearFilters = async () => {
   filters.value = {
     difficulty: '',
     cooking_time: '',
     servings: '',
   };
   showFilters.value = false;
-  fetchRecipes();
+  page.value = 1;
+  await fetchRecipes();
 };
 
-const clearSearch = () => {
+const clearSearch = async () => {
   searchQuery.value = '';
-  fetchRecipes();
+  page.value = 1;
+  await fetchRecipes();
 };
 
-const clearAll = () => {
+const clearAll = async () => {
   searchQuery.value = '';
-  clearFilters();
-  fetchRecipes();
+  await clearFilters();
+  page.value = 1;
+  await fetchRecipes();
 };
 
-const loadMore = () => {
+const loadMore = async () => {
   page.value++;
-  fetchRecipes();
+  await fetchRecipes();
 };
 
+// ✅ PERBAIKAN: Fetch recipes dengan semua parameter
 const fetchRecipes = async () => {
   loading.value = true;
   try {
@@ -241,11 +247,33 @@ const fetchRecipes = async () => {
       per_page: 12,
     };
 
+    // Add search query
     if (searchQuery.value) {
       params.q = searchQuery.value;
     }
 
-    await foodStore.fetchRecipes(params);
+    // Add filters
+    if (filters.value.difficulty) {
+      params.difficulty = filters.value.difficulty;
+    }
+
+    if (filters.value.cooking_time) {
+      params.cooking_time = filters.value.cooking_time;
+    }
+
+    if (filters.value.servings) {
+      params.servings = filters.value.servings;
+    }
+
+    const response = await foodStore.fetchRecipes(params);
+
+    // Update pagination info
+    if (response?.data?.meta) {
+      hasMore.value =
+        response.data.meta.current_page < response.data.meta.last_page;
+    } else {
+      hasMore.value = false;
+    }
   } catch (error) {
     console.error('Failed to fetch recipes:', error);
   } finally {
@@ -253,16 +281,11 @@ const fetchRecipes = async () => {
   }
 };
 
-const debounceSearch = debounce(() => {
+// ✅ PERBAIKAN: Debounce search dengan fetch data
+const debounceSearch = debounce(async () => {
   page.value = 1;
-  fetchRecipes();
+  await fetchRecipes();
 }, 300);
-
-// Watchers
-watch(searchQuery, () => {
-  page.value = 1;
-  debounceSearch();
-});
 
 // Lifecycle
 onMounted(async () => {

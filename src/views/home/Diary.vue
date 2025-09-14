@@ -536,6 +536,8 @@ import Button from '@/components/ui/Button.vue';
 import Modal from '@/components/ui/Modal.vue';
 import LoadingSpinner from '@/components/shared/LoadingSpinner.vue';
 import { debounce } from '@/utils/helpers';
+const websiteUrlStorage = import.meta.env.VITE_WEBSITE_URL_STORAGE;
+const websiteUrlImage = import.meta.env.VITE_WEBSITE_URL_IMAGE;
 
 // Icons
 const CalendarIcon = {
@@ -569,7 +571,7 @@ const ActivityIcon = {
 };
 
 // Stores & Router
-const router = useRouter();
+
 const userStore = useUserStore();
 const foodStore = useFoodStore();
 
@@ -595,21 +597,15 @@ const newEntry = ref({
 // Search states
 const foodSearch = ref('');
 const recipeSearch = ref('');
-const searchDebounce = ref(null);
 
 // Computed properties
 const diaryEntries = computed(() => {
-  return userStore.diaryEntries.filter(
-    (entry) => entry.date === selectedDate.value
-  );
+  return userStore.diaryEntries || [];
 });
 
 const summary = computed(() => {
-  const summary = userStore.diaryEntries.find(
-    (s) => s.date === selectedDate.value
-  );
   return (
-    summary || {
+    userStore.dailySummary || {
       total_calories_intake: 0,
       total_calories_burned: 0,
       net_calories: 0,
@@ -618,6 +614,7 @@ const summary = computed(() => {
       total_carbs: 0,
       total_fat: 0,
       total_fiber: 0,
+      target_calories: 2000,
     }
   );
 });
@@ -657,7 +654,7 @@ const canSaveEntry = computed(() => {
   } else {
     return (
       (newEntry.value.food_id || newEntry.value.recipe_id) &&
-      newEntry.value.quantity
+      newEntry.value.quantity > 0
     );
   }
 });
@@ -665,8 +662,10 @@ const canSaveEntry = computed(() => {
 const filteredFoods = computed(() => {
   if (!foodSearch.value) return foodStore.foods.slice(0, 10);
   return foodStore.foods
-    .filter((food) =>
-      food.name.toLowerCase().includes(foodSearch.value.toLowerCase())
+    .filter(
+      (food) =>
+        food.name.toLowerCase().includes(foodSearch.value.toLowerCase()) ||
+        food.description?.toLowerCase().includes(foodSearch.value.toLowerCase())
     )
     .slice(0, 10);
 });
@@ -678,7 +677,7 @@ const filteredRecipes = computed(() => {
       (recipe) =>
         recipe.title.toLowerCase().includes(recipeSearch.value.toLowerCase()) ||
         recipe.food?.name
-          .toLowerCase()
+          ?.toLowerCase()
           .includes(recipeSearch.value.toLowerCase())
     )
     .slice(0, 10);
@@ -693,6 +692,7 @@ const openDatePicker = () => {
 const confirmDateSelection = () => {
   selectedDate.value = tempSelectedDate.value;
   showDatePicker.value = false;
+  newEntry.value.date = tempSelectedDate.value;
   fetchDiaryEntries();
 };
 
@@ -720,36 +720,86 @@ const selectRecipe = (recipe) => {
   newEntry.value.food_id = null;
 };
 
+// ✅ PERBAIKAN: Save entry ke database
 const saveEntry = async () => {
-  if (!canSaveEntry.value) return;
+  if (!canSaveEntry.value) {
+    console.error('Cannot save entry - validation failed');
+    return;
+  }
 
+  loading.value = true;
   try {
-    // Save entry logic here
-    showAddEntry.value = false;
-    await fetchDiaryEntries();
+    // Prepare data untuk dikirim
+    const entryData = { ...newEntry.value };
+
+    // Hapus field yang tidak diperlukan berdasarkan meal_type
+    if (entryData.meal_type === 'exercise') {
+      delete entryData.food_id;
+      delete entryData.recipe_id;
+      delete entryData.quantity;
+    } else {
+      delete entryData.exercise_type;
+      delete entryData.exercise_duration;
+      delete entryData.calories_burned;
+    }
+
+    const result = await userStore.createDiaryEntry(entryData);
+
+    if (result.success) {
+      showAddEntry.value = false;
+
+      // Reset form
+      newEntry.value = {
+        date: selectedDate.value,
+        meal_type: 'breakfast',
+        food_id: null,
+        recipe_id: null,
+        quantity: 1,
+        exercise_type: '',
+        exercise_duration: '',
+        calories_burned: '',
+      };
+
+      // Refresh data
+      await fetchDiaryEntries();
+    } else {
+      console.error('Failed to save entry:', result.error);
+    }
   } catch (error) {
     console.error('Failed to save entry:', error);
+  } finally {
+    loading.value = false;
   }
 };
 
+// ✅ PERBAIKAN: Delete entry dari database
 const deleteEntry = async (entryId) => {
   if (confirm('Are you sure you want to delete this entry?')) {
+    loading.value = true;
     try {
-      // Delete entry logic here
-      await fetchDiaryEntries();
+      const result = await userStore.deleteDiaryEntry(entryId);
+
+      if (result.success) {
+        // Refresh data
+        await fetchDiaryEntries();
+      } else {
+        console.error('Failed to delete entry:', result.error);
+      }
     } catch (error) {
       console.error('Failed to delete entry:', error);
+    } finally {
+      loading.value = false;
     }
   }
 };
 
 const getEntryImage = (entry) => {
-  if (entry.food?.image_url) {
-    return entry.food.image_url;
-  } else if (entry.recipe?.food?.image_url) {
-    return entry.recipe.food.image_url;
+  if (entry.food?.image_path) {
+    return websiteUrlStorage + entry.food.image_path;
+  } else if (entry.recipe?.food?.image_path) {
+    return websiteUrlStorage + entry.recipe.food.image_path;
   }
-  return '/images/default-item.jpg';
+  return websiteUrlImage + 'default-food.jpg';
 };
 
 const getEntryName = (entry) => {
@@ -763,11 +813,16 @@ const getEntryName = (entry) => {
   return 'Unknown Entry';
 };
 
+// ✅ PERBAIKAN: Fetch diary entries dari API
 const fetchDiaryEntries = async () => {
   loading.value = true;
   try {
-    // Fetch diary entries for selected date
-    // This would typically call an API
+    await Promise.all([
+      userStore.fetchDiaryEntries(selectedDate.value),
+      userStore.fetchDailySummary(selectedDate.value),
+      foodStore.fetchFoods(),
+      foodStore.fetchRecipes(),
+    ]);
   } catch (error) {
     console.error('Failed to fetch diary entries:', error);
   } finally {
@@ -775,7 +830,7 @@ const fetchDiaryEntries = async () => {
   }
 };
 
-const debounceSearchFoods = debounce(() => {
+const debounceSearch = debounce(() => {
   if (foodSearch.value) {
     foodStore.searchFoods(foodSearch.value);
   }
@@ -788,27 +843,55 @@ const debounceSearchRecipes = debounce(() => {
 }, 300);
 
 const handleImageError = (event) => {
-  event.target.src = '/images/default-item.jpg';
+  event.target.src = websiteUrlImage + 'default-food.jpg';
 };
+
+const clearSearch = () => {
+  searchQuery.value = '';
+  fetchDiaryEntries();
+};
+
+const clearFilters = () => {
+  filters.value = {
+    difficulty: '',
+    cooking_time: '',
+    servings: '',
+  };
+  showFilters.value = false;
+  fetchRecipes();
+};
+
+const applyFilters = () => {
+  showFilters.value = false;
+  page.value = 1;
+  fetchRecipes();
+};
+
+const clearAll = () => {
+  searchQuery.value = '';
+  clearFilters();
+};
+
+const loadMore = () => {
+  page.value++;
+  fetchRecipes();
+};
+
+// Lifecycle
+onMounted(async () => {
+  await fetchDiaryEntries();
+});
 
 // Watchers
 watch(selectedDate, () => {
   fetchDiaryEntries();
 });
 
-// Lifecycle
-onMounted(async () => {
-  loading.value = true;
-  try {
-    await Promise.all([
-      foodStore.fetchFoods(),
-      foodStore.fetchRecipes(),
-      fetchDiaryEntries(),
-    ]);
-  } catch (error) {
-    console.error('Failed to load diary data:', error);
-  } finally {
-    loading.value = false;
-  }
+watch(foodSearch, () => {
+  debounceSearch();
+});
+
+watch(recipeSearch, () => {
+  debounceSearchRecipes();
 });
 </script>

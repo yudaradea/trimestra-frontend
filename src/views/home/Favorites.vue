@@ -71,7 +71,7 @@
         <!-- Grid View -->
         <div v-if="viewMode === 'grid'" class="grid grid-cols-2 gap-4">
           <div
-            v-for="favorite in filteredFavorites"
+            v-for="favorite in displayedFavorites"
             :key="favorite.id"
             class="relative card group"
           >
@@ -118,7 +118,7 @@
         <!-- List View -->
         <div v-else class="space-y-3">
           <Card
-            v-for="favorite in filteredFavorites"
+            v-for="favorite in displayedFavorites"
             :key="favorite.id"
             class="p-4"
           >
@@ -166,8 +166,8 @@
           </Card>
         </div>
 
-        <!-- Load More -->
-        <div v-if="hasMore && !loading" class="mt-6 text-center">
+        <!-- ✅ PERBAIKAN: Load More hanya muncul jika ada lebih banyak data -->
+        <div v-if="hasMoreItems && !loading" class="mt-6 text-center">
           <Button @click="loadMore" variant="outline"> Load More </Button>
         </div>
       </div>
@@ -176,12 +176,14 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, computed, onMounted, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { useUserStore } from '@/stores/user';
 import Card from '@/components/ui/Card.vue';
 import Button from '@/components/ui/Button.vue';
 import LoadingSpinner from '@/components/shared/LoadingSpinner.vue';
+const websiteUrlStorage = import.meta.env.VITE_WEBSITE_URL_STORAGE;
+const websiteUrlImage = import.meta.env.VITE_WEBSITE_URL_IMAGE;
 
 // Icons
 const HeartIcon = {
@@ -221,6 +223,7 @@ const ClockIcon = {
 
 // Stores & Router
 const router = useRouter();
+const route = useRoute();
 const userStore = useUserStore();
 
 // Reactive state
@@ -228,7 +231,8 @@ const loading = ref(false);
 const viewMode = ref('grid'); // 'grid' or 'list'
 const activeFilter = ref('all'); // 'all', 'food', 'recipe'
 const page = ref(1);
-const hasMore = ref(true);
+const perPage = ref(12); // Items per page
+const hasMoreItems = ref(false); // ✅ PERBAIKAN: Gunakan nama yang lebih jelas
 
 // Computed properties
 const favorites = computed(() => userStore.favorites || []);
@@ -239,8 +243,21 @@ const filterTabs = computed(() => [
   { key: 'recipe', label: 'Recipes' },
 ]);
 
+// ✅ PERBAIKAN: Computed untuk filtered favorites
 const filteredFavorites = computed(() => {
   return getFilteredFavorites(activeFilter.value);
+});
+
+// ✅ PERBAIKAN: Computed untuk displayed favorites (dengan pagination)
+const displayedFavorites = computed(() => {
+  const startIndex = (page.value - 1) * perPage.value;
+  const endIndex = startIndex + perPage.value;
+  return filteredFavorites.value.slice(startIndex, endIndex);
+});
+
+// ✅ PERBAIKAN: Computed untuk cek apakah ada lebih banyak items
+const hasMore = computed(() => {
+  return filteredFavorites.value.length > page.value * perPage.value;
 });
 
 // Methods
@@ -251,12 +268,12 @@ const getFilteredFavorites = (filter) => {
 };
 
 const getItemImage = (favorite) => {
-  if (favorite.food?.image_url) {
-    return favorite.food.image_url;
-  } else if (favorite.recipe?.food?.image_url) {
-    return favorite.recipe.food.image_url;
+  if (favorite.food?.image_path) {
+    return websiteUrlStorage + favorite.food.image_path;
+  } else if (favorite.recipe?.food?.image_path) {
+    return websiteUrlStorage + favorite.recipe.food.image_path;
   }
-  return '/images/default-item.jpg';
+  return websiteUrlImage + 'default-food.png';
 };
 
 const getItemName = (favorite) => {
@@ -285,27 +302,45 @@ const removeFavorite = async (favoriteId) => {
   if (confirm('Are you sure you want to remove this from favorites?')) {
     try {
       await userStore.removeFavorite(favoriteId);
+
+      // ✅ PERBAIKAN: Reset pagination jika perlu
+      if (displayedFavorites.value.length === 0 && page.value > 1) {
+        page.value = Math.max(1, page.value - 1);
+      }
     } catch (error) {
       console.error('Failed to remove favorite:', error);
     }
   }
 };
 
-const loadMore = async () => {
-  // Implement pagination if needed
-  page.value++;
-  await fetchFavorites();
+// ✅ PERBAIKAN: Load more dengan pagination yang benar
+const loadMore = () => {
+  if (hasMore.value) {
+    page.value++;
+  }
 };
 
 const fetchFavorites = async () => {
   loading.value = true;
   try {
     await userStore.fetchFavorites();
+
+    // ✅ PERBAIKAN: Reset pagination setiap kali fetch baru
+    page.value = 1;
+
+    // ✅ PERBAIKAN: Update hasMoreItems berdasarkan jumlah data
+    hasMoreItems.value = favorites.value.length > perPage.value;
   } catch (error) {
     console.error('Failed to fetch favorites:', error);
   } finally {
     loading.value = false;
   }
+};
+
+const clearFilters = () => {
+  activeFilter.value = 'all';
+  page.value = 1;
+  hasMoreItems.value = favorites.value.length > perPage.value;
 };
 
 const goToFoods = () => {
@@ -317,12 +352,18 @@ const goToRecipes = () => {
 };
 
 const handleImageError = (event) => {
-  event.target.src = '/images/default-item.jpg';
+  event.target.src = websiteUrlImage + 'default-food.png';
 };
 
 // Lifecycle
 onMounted(async () => {
   await fetchFavorites();
+});
+
+// ✅ PERBAIKAN: Watch untuk update hasMoreItems
+watch([favorites, activeFilter, page], () => {
+  hasMoreItems.value =
+    filteredFavorites.value.length > page.value * perPage.value;
 });
 </script>
 

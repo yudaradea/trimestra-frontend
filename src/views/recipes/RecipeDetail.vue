@@ -281,10 +281,15 @@ const userStore = useUserStore();
 // Reactive state
 const loading = ref(false);
 const recipe = ref(null);
+const websiteUrlStorage = import.meta.env.VITE_WEBSITE_URL_STORAGE;
+const websiteUrlImage = import.meta.env.VITE_WEBSITE_URL_IMAGE;
 
 // Computed properties
 const recipeImage = computed(() => {
-  return recipe.value?.food?.image_url || '/images/default-recipe.jpg';
+  return (
+    websiteUrlStorage + recipe.value?.food?.image_path ||
+    websiteUrlImage + 'default-food.png'
+  );
 });
 
 const isFavorite = computed(() => {
@@ -359,17 +364,23 @@ const difficultyBadgeClass = (difficulty) => {
 const fetchRecipe = async () => {
   loading.value = true;
   try {
-    const data = await foodStore.fetchRecipeDetail(props.id);
-    recipe.value = data;
+    const response = await foodStore.fetchRecipeDetail(props.id);
+
+    if (response.success) {
+      recipe.value = response.data;
+    } else {
+      recipe.value = null;
+    }
   } catch (error) {
     console.error('Failed to fetch recipe:', error);
+    recipe.value = null;
   } finally {
     loading.value = false;
   }
 };
 
 const handleImageError = (event) => {
-  event.target.src = '/images/default-recipe.jpg';
+  event.target.src = websiteUrlImage + 'default-food.png';
 };
 
 // Lifecycle

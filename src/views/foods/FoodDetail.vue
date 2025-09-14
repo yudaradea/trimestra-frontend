@@ -167,7 +167,7 @@
               {{ food.recipes.title }}
             </h3>
 
-            <div class="grid grid-cols-3 gap-4 mb-4">
+            <div class="grid grid-cols-3 gap-4 mb-6">
               <div class="text-center">
                 <div class="text-2xl font-bold text-primary">
                   {{ food.recipes.prep_time }}
@@ -188,7 +188,8 @@
               </div>
             </div>
 
-            <div class="mb-4">
+            <div class="flex items-center gap-2 mt-4 mb-4">
+              <h4 class="font-medium text-gray-900">Difficulty</h4>
               <span
                 :class="[
                   'badge',
@@ -367,7 +368,6 @@ const userStore = useUserStore();
 // Reactive state
 const loading = ref(false);
 const food = ref(null);
-
 // Computed properties
 const isFavorite = computed(() => {
   return userStore.favorites.some((fav) => fav.food_id === parseInt(props.id));
@@ -439,11 +439,16 @@ const difficultyBadgeClass = (difficulty) => {
 const fetchFood = async () => {
   loading.value = true;
   try {
-    const data = await foodStore.fetchFoodDetail(props.id);
-    food.value = data;
-    console.log(data);
+    const response = await foodStore.fetchFoodDetail(props.id);
+
+    if (response.success) {
+      food.value = response.data;
+    } else {
+      food.value = null;
+    }
   } catch (error) {
     console.error('Failed to fetch food:', error);
+    food.value = null;
   } finally {
     loading.value = false;
   }

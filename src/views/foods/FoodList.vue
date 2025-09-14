@@ -12,12 +12,6 @@
             >
               <FilterIcon class="w-5 h-5 text-gray-600" />
             </button>
-            <button
-              @click="openSearch"
-              class="p-2 transition-colors rounded-lg hover:bg-gray-100"
-            >
-              <SearchIcon class="w-5 h-5 text-gray-600" />
-            </button>
           </div>
         </div>
       </div>
@@ -103,6 +97,7 @@
           >
           <select v-model="filters.diet_type" class="w-full select-field">
             <option value="">All Types</option>
+            <option value="normal">Normal</option>
             <option value="vegetarian">Vegetarian</option>
             <option value="vegan">Vegan</option>
             <option value="keto">Keto</option>
@@ -124,9 +119,20 @@
         <LoadingSpinner text="Loading foods..." />
       </div>
 
-      <!-- Categories -->
-      <div v-if="!searchQuery" class="mb-6">
+      <!-- Categories (Always show when not searching) -->
+      <div v-if="!searchQuery && categories.length > 0" class="mb-6">
         <div class="flex pb-2 space-x-2 overflow-x-auto hide-scrollbar">
+          <button
+            @click="selectCategory('')"
+            :class="[
+              'flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-colors whitespace-nowrap',
+              selectedCategory === ''
+                ? 'bg-primary text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200',
+            ]"
+          >
+            All
+          </button>
           <button
             v-for="category in categories"
             :key="category.id"
@@ -144,7 +150,10 @@
       </div>
 
       <!-- Empty State -->
-      <div v-else-if="filteredFoods.length === 0" class="py-12 text-center">
+      <div
+        v-if="!loading && filteredFoods.length === 0"
+        class="py-12 text-center"
+      >
         <div
           class="flex items-center justify-center w-24 h-24 mx-auto mb-6 bg-gray-100 rounded-full"
         >
@@ -159,8 +168,8 @@
         </Button>
       </div>
 
-      <!-- Foods Grid -->
-      <div v-else>
+      <!-- Foods Grid (Always show when there are foods or not searching) -->
+      <div v-if="!loading && (filteredFoods.length > 0 || !searchQuery)">
         <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           <FoodCard v-for="food in filteredFoods" :key="food.id" :food="food" />
         </div>
@@ -203,10 +212,10 @@ const XIcon = {
 
 const UtensilsIcon = {
   template:
-    '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 15.546c-.523 0-1.046.151-1.5.454a2.704 2.704 0 01-3 0 2.704 2.704 0 00-3 0 2.704 2.704 0 01-3 0 2.704 2.704 0 00-3 0 2.704 2.704 0 01-3 0 2.701 2.701 0 00-1.5-.454M9 6v2m3-2v2m3-2v2M9 3h.01M12 3h.01M15 3h.01M21 21v-7a2 2 0 00-2-2H5a2 2 0 00-2 2v7h18zm-3-9v-2a2 2 0 00-2-2H8a2 2 0 00-2 2v2h12z" /></svg>',
+    '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 15.546c-.523 0-1.046.151-1.5.454a2.704 2.704 0 01-3 0 2.704 2.704 0 00-3 0 2.704 2.704 0 01-3 0 2.704 2.704 0 00-3 0 2.704 2.704 0 01-3 0 2.701 2.701 0 00-1.5-.454 2.704 2.704 0 01-3 0 2.701 2.701 0 00-1.5.454" /></svg>',
 };
 
-// Stores & Router
+// Router & Stores
 const router = useRouter();
 const route = useRoute();
 const foodStore = useFoodStore();
@@ -228,16 +237,18 @@ const filters = ref({
 });
 
 // Computed properties
-const categories = computed(() => foodStore.categories);
+const categories = computed(() => foodStore.categories || []);
 const filteredFoods = computed(() => {
-  let foods = foodStore.foods;
+  let foods = foodStore.foods || [];
 
   // Apply search filter
   if (searchQuery.value) {
     foods = foods.filter(
       (food) =>
         food.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-        food.description.toLowerCase().includes(searchQuery.value.toLowerCase())
+        food.description
+          ?.toLowerCase()
+          .includes(searchQuery.value.toLowerCase())
     );
   }
 
@@ -246,22 +257,71 @@ const filteredFoods = computed(() => {
     foods = foods.filter((food) => food.category_id === selectedCategory.value);
   }
 
+  // Apply filters from modal
+  if (filters.value.category_id) {
+    foods = foods.filter(
+      (food) => food.category_id === filters.value.category_id
+    );
+  }
+
+  // Apply calorie filters
+  if (filters.value.min_calories) {
+    foods = foods.filter((food) => food.calories >= filters.value.min_calories);
+  }
+
+  if (filters.value.max_calories) {
+    foods = foods.filter((food) => food.calories <= filters.value.max_calories);
+  }
+
+  // ✅ PERBAIKAN: Apply cooking time filter yang benar
+  if (filters.value.cooking_time) {
+    const cookingTime = filters.value.cooking_time;
+
+    switch (cookingTime) {
+      case '<15':
+        foods = foods.filter(
+          (food) => food.cooking_time < 15 || food.cooking_time === null
+        );
+        break;
+
+      case '15-30':
+        foods = foods.filter(
+          (food) => food.cooking_time >= 15 && food.cooking_time <= 30
+        );
+        break;
+
+      case '>30':
+        foods = foods.filter((food) => food.cooking_time > 30);
+        break;
+    }
+  }
+
+  // Apply diet type filter
+  if (filters.value.diet_type && filters.value.diet_type !== 'no_preference') {
+    foods = foods.filter((food) => {
+      if (!food.diet_types || food.diet_types.length === 0) {
+        return true; // Foods without diet types are available to everyone
+      }
+      return food.diet_types.includes(filters.value.diet_type);
+    });
+  }
+
   return foods;
 });
 
 // Methods
 const openSearch = () => {
-  router.push('/search');
+  router.push('/foods/search');
 };
 
 const openFilter = () => {
   showFilters.value = true;
 };
 
-const applyFilters = () => {
-  // Apply filters logic
+const applyFilters = async () => {
   showFilters.value = false;
-  fetchFoods();
+  page.value = 1;
+  await fetchFoods();
 };
 
 const clearFilters = () => {
@@ -273,16 +333,19 @@ const clearFilters = () => {
     diet_type: '',
   };
   showFilters.value = false;
+  page.value = 1;
   fetchFoods();
 };
 
-const selectCategory = (categoryId) => {
+const selectCategory = async (categoryId) => {
   selectedCategory.value = categoryId;
-  fetchFoods();
+  page.value = 1;
+  await fetchFoods();
 };
 
 const clearSearch = () => {
   searchQuery.value = '';
+  page.value = 1;
   fetchFoods();
 };
 
@@ -290,12 +353,13 @@ const clearAll = () => {
   searchQuery.value = '';
   selectedCategory.value = '';
   clearFilters();
+  page.value = 1;
   fetchFoods();
 };
 
-const loadMore = () => {
+const loadMore = async () => {
   page.value++;
-  fetchFoods();
+  await fetchFoods();
 };
 
 const fetchFoods = async () => {
@@ -306,19 +370,54 @@ const fetchFoods = async () => {
       per_page: 12,
     };
 
-    if (selectedCategory.value) {
-      params.category_id = selectedCategory.value;
-    }
-
+    // Add search query
     if (searchQuery.value) {
       params.q = searchQuery.value;
     }
 
-    await foodStore.fetchFoods(params);
+    // Add category filter (priority: selectedCategory > filters.category_id)
+    const categoryId = selectedCategory.value || filters.value.category_id;
+    if (categoryId) {
+      params.category_id = categoryId;
+    }
+
+    // Add other filters
+    if (filters.value.min_calories) {
+      params.min_calories = filters.value.min_calories;
+    }
+
+    if (filters.value.max_calories) {
+      params.max_calories = filters.value.max_calories;
+    }
+
+    if (filters.value.cooking_time) {
+      params.cooking_time = filters.value.cooking_time;
+    }
+
+    if (filters.value.diet_type) {
+      params.diet_type = filters.value.diet_type;
+    }
+
+    const response = await foodStore.fetchFoods(params);
+
+    // Update hasMore based on pagination
+    if (response?.data?.meta) {
+      hasMore.value =
+        response.data.meta.current_page < response.data.meta.last_page;
+    } else {
+      hasMore.value = false;
+    }
   } catch (error) {
     console.error('Failed to fetch foods:', error);
   } finally {
     loading.value = false;
+  }
+};
+const fetchCategories = async () => {
+  try {
+    await foodStore.fetchCategories();
+  } catch (error) {
+    console.error('Failed to fetch categories:', error);
   }
 };
 
@@ -337,7 +436,7 @@ watch(searchQuery, () => {
 onMounted(async () => {
   loading.value = true;
   try {
-    await Promise.all([foodStore.fetchCategories(), fetchFoods()]);
+    await Promise.all([fetchCategories(), fetchFoods()]);
   } catch (error) {
     console.error('Failed to load foods:', error);
   } finally {

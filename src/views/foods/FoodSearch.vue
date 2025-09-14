@@ -175,6 +175,8 @@ import Card from '@/components/ui/Card.vue';
 import Button from '@/components/ui/Button.vue';
 import LoadingSpinner from '@/components/shared/LoadingSpinner.vue';
 import { debounce } from '@/utils/helpers';
+const websiteUrlStorage = import.meta.env.VITE_WEBSITE_URL_STORAGE;
+const websiteUrlImage = import.meta.env.VITE_WEBSITE_URL_IMAGE;
 
 // Icons
 const ArrowLeftIcon = {
@@ -264,12 +266,12 @@ const getFilteredResults = (tab) => {
 };
 
 const getResultImage = (result) => {
-  if (result.image_url) {
-    return result.image_url;
-  } else if (result.food?.image_url) {
-    return result.food.image_url;
+  if (result.image_path) {
+    return websiteUrlStorage + result.image_path;
+  } else if (result.food?.image_path) {
+    return websiteUrlStorage + result.food.image_path;
   }
-  return '/images/default-item.jpg';
+  return websiteUrlImage + 'default-food.png';
 };
 
 const getResultName = (result) => {
@@ -356,7 +358,7 @@ const loadMore = () => {
 };
 
 const handleImageError = (event) => {
-  event.target.src = '/images/default-item.jpg';
+  event.target.src = websiteUrlImage + 'default-food.png';
 };
 
 // Lifecycle
