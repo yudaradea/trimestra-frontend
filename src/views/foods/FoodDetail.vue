@@ -41,7 +41,10 @@
       <!-- Food Image -->
       <div class="relative mb-6">
         <img
-          :src="food.image_url || '/images/default-food.jpg'"
+          :src="
+            `${websiteUrlStorage}${food.image_path}` ||
+            `${websiteUrlImage}default-food.png`
+          "
           :alt="food.name"
           class="object-cover w-full h-64 rounded-xl"
           @error="handleImageError"
@@ -278,6 +281,8 @@ import { useUserStore } from '@/stores/user';
 import Card from '@/components/ui/Card.vue';
 import Button from '@/components/ui/Button.vue';
 import LoadingSpinner from '@/components/shared/LoadingSpinner.vue';
+const websiteUrlStorage = import.meta.env.VITE_WEBSITE_URL_STORAGE;
+const websiteUrlImage = import.meta.env.VITE_WEBSITE_URL_IMAGE;
 
 // Icons
 const ArrowLeftIcon = {
@@ -436,6 +441,7 @@ const fetchFood = async () => {
   try {
     const data = await foodStore.fetchFoodDetail(props.id);
     food.value = data;
+    console.log(data);
   } catch (error) {
     console.error('Failed to fetch food:', error);
   } finally {
@@ -444,7 +450,7 @@ const fetchFood = async () => {
 };
 
 const handleImageError = (event) => {
-  event.target.src = '/images/default-food.jpg';
+  event.target.src = websiteUrlImage + 'default-food.png';
 };
 
 // Lifecycle

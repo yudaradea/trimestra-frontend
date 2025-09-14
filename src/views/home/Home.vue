@@ -295,6 +295,7 @@ const userStore = useUserStore();
 const loading = ref(false);
 const recommendedFoodsLoading = ref(false);
 const diaryLoading = ref(false);
+const websiteUrlStorage = import.meta.env.VITE_WEBSITE_URL_STORAGE;
 const websiteUrlImage = import.meta.env.VITE_WEBSITE_URL_IMAGE;
 
 // Computed properties
@@ -348,10 +349,10 @@ const goTo = (path) => {
 };
 
 const getEntryImage = (entry) => {
-  if (entry.food?.image_url) {
-    return entry.food.image_url;
-  } else if (entry.recipe?.food?.image_url) {
-    return entry.recipe.food.image_url;
+  if (entry.food?.image_path) {
+    return websiteUrlStorage + entry.food.image_path;
+  } else if (entry.recipe?.food?.image_path) {
+    return websiteUrlStorage + entry.recipe.food.image_path;
   }
   return websiteUrlImage + 'default-food.png';
 };
@@ -373,7 +374,8 @@ const formatDate = (dateString) => {
     return 'Today';
   }
 
-  return date.toLocaleDateString('en-US', {
+  return date.toLocaleDateString('id-ID', {
+    year: 'numeric',
     month: 'short',
     day: 'numeric',
   });
