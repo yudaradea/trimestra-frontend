@@ -9,7 +9,7 @@
             <h1 class="mb-1 text-xl font-bold text-primary">
               Hello, {{ user?.name || 'User' }}!
             </h1>
-            <p class="text-sm text-gray-600">Welcome back to TRIMESTRA</p>
+            <p class="text-sm text-gray-600">Welcome back to TRIMESTRAAA</p>
           </div>
         </div>
       </div>
