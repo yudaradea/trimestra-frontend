@@ -295,6 +295,7 @@ const userStore = useUserStore();
 const loading = ref(false);
 const recommendedFoodsLoading = ref(false);
 const diaryLoading = ref(false);
+const websiteUrlImage = import.meta.env.VITE_WEBSITE_URL_IMAGE;
 
 // Computed properties
 const user = computed(() => authStore.user);
@@ -352,7 +353,7 @@ const getEntryImage = (entry) => {
   } else if (entry.recipe?.food?.image_url) {
     return entry.recipe.food.image_url;
   }
-  return '/images/default-item.jpg';
+  return websiteUrlImage + 'default-food.png';
 };
 
 const getEntryName = (entry) => {
