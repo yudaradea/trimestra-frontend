@@ -1,3 +1,4 @@
+h2
 <template>
   <div class="min-h-screen bg-background">
     <!-- Header -->
@@ -252,9 +253,7 @@
         <!-- Nutrition Summary -->
         <Card class="mb-6">
           <div class="p-4">
-            <h3 class="mb-3 text-lg font-semibold">
-              Today's Nutrition Summary
-            </h3>
+            <h3 class="mb-3 text-lg font-semibold">Nutrition Summary</h3>
             <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
               <div class="text-center">
                 <div class="text-2xl font-bold text-primary">
@@ -323,20 +322,11 @@
 
         <!-- Meal Entries -->
         <div class="space-y-6">
-          <!-- Breakfast -->
-          <div v-if="breakfastEntries.length > 0">
-            <div class="flex items-center justify-between mb-3">
-              <h3 class="text-lg font-semibold text-gray-900">Breakfast</h3>
-              <span class="text-sm text-gray-500"
-                >{{ breakfastEntries.length }} items</span
-              >
-            </div>
+          <!-- Recent Diary Entries untuk Tanggal yang Dipilih -->
+          <div v-if="diaryEntries.length > 0">
+            <h2 class="mb-4 text-lg font-semibold">Recent Entries</h2>
             <div class="space-y-3">
-              <Card
-                v-for="entry in breakfastEntries"
-                :key="entry.id"
-                class="p-4"
-              >
+              <Card v-for="entry in diaryByDate" :key="entry.id" class="p-4">
                 <div class="flex items-center justify-between">
                   <div class="flex items-center">
                     <img
@@ -350,125 +340,15 @@
                       <div
                         class="flex items-center space-x-3 text-sm text-gray-600"
                       >
-                        <span>{{ entry.quantity }} serving</span>
-                        <span>{{ Math.round(entry.calories) }} cal</span>
-                      </div>
-                    </div>
-                  </div>
-                  <button
-                    @click="deleteEntry(entry.id)"
-                    class="p-2 text-red-500 rounded-full hover:bg-red-50"
-                  >
-                    <TrashIcon class="w-5 h-5" />
-                  </button>
-                </div>
-              </Card>
-            </div>
-          </div>
-
-          <!-- Lunch -->
-          <div v-if="lunchEntries.length > 0">
-            <div class="flex items-center justify-between mb-3">
-              <h3 class="text-lg font-semibold text-gray-900">Lunch</h3>
-              <span class="text-sm text-gray-500"
-                >{{ lunchEntries.length }} items</span
-              >
-            </div>
-            <div class="space-y-3">
-              <Card v-for="entry in lunchEntries" :key="entry.id" class="p-4">
-                <div class="flex items-center justify-between">
-                  <div class="flex items-center">
-                    <img
-                      :src="getEntryImage(entry)"
-                      :alt="getEntryName(entry)"
-                      class="object-cover w-12 h-12 mr-3 rounded-lg"
-                      @error="handleImageError"
-                    />
-                    <div>
-                      <h4 class="font-medium">{{ getEntryName(entry) }}</h4>
-                      <div
-                        class="flex items-center space-x-3 text-sm text-gray-600"
-                      >
-                        <span>{{ entry.quantity }} serving</span>
-                        <span>{{ Math.round(entry.calories) }} cal</span>
-                      </div>
-                    </div>
-                  </div>
-                  <button
-                    @click="deleteEntry(entry.id)"
-                    class="p-2 text-red-500 rounded-full hover:bg-red-50"
-                  >
-                    <TrashIcon class="w-5 h-5" />
-                  </button>
-                </div>
-              </Card>
-            </div>
-          </div>
-
-          <!-- Dinner -->
-          <div v-if="dinnerEntries.length > 0">
-            <div class="flex items-center justify-between mb-3">
-              <h3 class="text-lg font-semibold text-gray-900">Dinner</h3>
-              <span class="text-sm text-gray-500"
-                >{{ dinnerEntries.length }} items</span
-              >
-            </div>
-            <div class="space-y-3">
-              <Card v-for="entry in dinnerEntries" :key="entry.id" class="p-4">
-                <div class="flex items-center justify-between">
-                  <div class="flex items-center">
-                    <img
-                      :src="getEntryImage(entry)"
-                      :alt="getEntryName(entry)"
-                      class="object-cover w-12 h-12 mr-3 rounded-lg"
-                      @error="handleImageError"
-                    />
-                    <div>
-                      <h4 class="font-medium">{{ getEntryName(entry) }}</h4>
-                      <div
-                        class="flex items-center space-x-3 text-sm text-gray-600"
-                      >
-                        <span>{{ entry.quantity }} serving</span>
-                        <span>{{ Math.round(entry.calories) }} cal</span>
-                      </div>
-                    </div>
-                  </div>
-                  <button
-                    @click="deleteEntry(entry.id)"
-                    class="p-2 text-red-500 rounded-full hover:bg-red-50"
-                  >
-                    <TrashIcon class="w-5 h-5" />
-                  </button>
-                </div>
-              </Card>
-            </div>
-          </div>
-
-          <!-- Snacks -->
-          <div v-if="snackEntries.length > 0">
-            <div class="flex items-center justify-between mb-3">
-              <h3 class="text-lg font-semibold text-gray-900">Snacks</h3>
-              <span class="text-sm text-gray-500"
-                >{{ snackEntries.length }} items</span
-              >
-            </div>
-            <div class="space-y-3">
-              <Card v-for="entry in snackEntries" :key="entry.id" class="p-4">
-                <div class="flex items-center justify-between">
-                  <div class="flex items-center">
-                    <img
-                      :src="getEntryImage(entry)"
-                      :alt="getEntryName(entry)"
-                      class="object-cover w-12 h-12 mr-3 rounded-lg"
-                      @error="handleImageError"
-                    />
-                    <div>
-                      <h4 class="font-medium">{{ getEntryName(entry) }}</h4>
-                      <div
-                        class="flex items-center space-x-3 text-sm text-gray-600"
-                      >
-                        <span>{{ entry.quantity }} serving</span>
-                        <span>{{ Math.round(entry.calories) }} cal</span>
+                        <span class="capitalize">{{ entry.meal_type }}</span>
+                        <span>{{ entry.quantity || 1 }} serving</span>
+                        <span v-if="entry.calories"
+                          >{{ Math.round(entry.calories) }} cal</span
+                        >
+                        <span v-else-if="entry.calories_burned"
+                          >{{ Math.round(entry.calories_burned) }} cal
+                          burned</span
+                        >
                       </div>
                     </div>
                   </div>
@@ -610,10 +490,17 @@ const diaryEntries = computed(() => {
   return userStore.diaryEntries || [];
 });
 
+const diaryByDate = computed(() => {
+  return diaryEntries.value.filter(
+    (entry) => entry.date === selectedDate.value
+  );
+});
+
 const summary = computed(() => {
   const summaryData = userStore.dailySummary || {};
 
   return {
+    date: summaryData.date || null,
     total_calories_intake: summaryData.total_calories_intake || 0,
     total_calories_burned: summaryData.total_calories_burned || 0,
     net_calories:
@@ -642,28 +529,16 @@ const summary = computed(() => {
   };
 });
 
-const breakfastEntries = computed(() => {
-  return diaryEntries.value.filter((entry) => entry.meal_type === 'breakfast');
-});
-
-const lunchEntries = computed(() => {
-  return diaryEntries.value.filter((entry) => entry.meal_type === 'lunch');
-});
-
-const dinnerEntries = computed(() => {
-  return diaryEntries.value.filter((entry) => entry.meal_type === 'dinner');
-});
-
-const snackEntries = computed(() => {
-  return diaryEntries.value.filter((entry) => entry.meal_type === 'snack');
-});
-
 const exerciseEntries = computed(() => {
   return diaryEntries.value.filter((entry) => entry.meal_type === 'exercise');
 });
 
 const formattedSelectedDate = computed(() => {
-  return new Date(selectedDate.value).toLocaleDateString('en-US', {
+  const today = new Date();
+
+  if (selectedDate.value === today.toISOString().split('T')[0]) return 'Today';
+
+  return new Date(selectedDate.value).toLocaleDateString('id-ID', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
@@ -822,7 +697,7 @@ const getEntryImage = (entry) => {
   } else if (entry.recipe?.food?.image_path) {
     return websiteUrlStorage + entry.recipe.food.image_path;
   }
-  return websiteUrlImage + 'default-food.jpg';
+  return websiteUrlImage + 'default-food.png';
 };
 
 const getEntryName = (entry) => {
