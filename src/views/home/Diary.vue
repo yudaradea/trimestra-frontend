@@ -258,25 +258,32 @@
             <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
               <div class="text-center">
                 <div class="text-2xl font-bold text-primary">
-                  {{ summary.total_calories_intake }}
+                  {{ Math.round(summary.total_calories_intake || 0) }}
                 </div>
                 <div class="text-sm text-gray-600">Calories In</div>
               </div>
               <div class="text-center">
                 <div class="text-2xl font-bold text-green-500">
-                  {{ summary.total_calories_burned }}
+                  {{ Math.round(summary.total_calories_burned || 0) }}
                 </div>
                 <div class="text-sm text-gray-600">Calories Out</div>
               </div>
               <div class="text-center">
-                <div class="text-2xl font-bold text-blue-500">
-                  {{ summary.net_calories }}
+                <div
+                  :class="[
+                    'text-2xl font-bold',
+                    (summary.net_calories || 0) >= 0
+                      ? 'text-blue-500'
+                      : 'text-red-500',
+                  ]"
+                >
+                  {{ Math.round(summary.net_calories || 0) }}
                 </div>
                 <div class="text-sm text-gray-600">Net Calories</div>
               </div>
               <div class="text-center">
                 <div class="text-2xl font-bold text-purple-500">
-                  {{ summary.calorie_progress }}%
+                  {{ Math.round(summary.calorie_progress || 0) }}%
                 </div>
                 <div class="text-sm text-gray-600">Progress</div>
               </div>
@@ -604,19 +611,35 @@ const diaryEntries = computed(() => {
 });
 
 const summary = computed(() => {
-  return (
-    userStore.dailySummary || {
-      total_calories_intake: 0,
-      total_calories_burned: 0,
-      net_calories: 0,
-      calorie_progress: 0,
-      total_protein: 0,
-      total_carbs: 0,
-      total_fat: 0,
-      total_fiber: 0,
-      target_calories: 2000,
-    }
-  );
+  const summaryData = userStore.dailySummary || {};
+
+  return {
+    total_calories_intake: summaryData.total_calories_intake || 0,
+    total_calories_burned: summaryData.total_calories_burned || 0,
+    net_calories:
+      summaryData.net_calories ||
+      summaryData.total_calories_intake - summaryData.total_calories_burned ||
+      0,
+    calorie_progress:
+      summaryData.calorie_progress ||
+      (summaryData.target_calories > 0
+        ? Math.round(
+            ((summaryData.total_calories_intake || 0) /
+              summaryData.target_calories) *
+              100
+          )
+        : 0) ||
+      0,
+    total_protein: summaryData.total_protein || 0,
+    total_carbs: summaryData.total_carbs || 0,
+    total_fat: summaryData.total_fat || 0,
+    total_fiber: summaryData.total_fiber || 0,
+    target_calories: summaryData.target_calories || 2000,
+    remaining_calories:
+      summaryData.remaining_calories ||
+      summaryData.target_calories - summaryData.total_calories_intake ||
+      2000,
+  };
 });
 
 const breakfastEntries = computed(() => {
