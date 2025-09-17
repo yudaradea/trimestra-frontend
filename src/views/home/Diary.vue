@@ -1,4 +1,3 @@
-h2
 <template>
   <div class="min-h-screen bg-background">
     <!-- Header -->
@@ -66,6 +65,17 @@ h2
           >
           <div class="flex mb-3 space-x-2">
             <button
+              @click="entryTab = 'favorite'"
+              :class="[
+                'px-4 py-2 rounded-lg',
+                entryTab === 'favorite'
+                  ? 'bg-primary text-white'
+                  : 'bg-gray-100 text-gray-700',
+              ]"
+            >
+              Favorite
+            </button>
+            <button
               @click="entryTab = 'food'"
               :class="[
                 'px-4 py-2 rounded-lg',
@@ -76,20 +86,52 @@ h2
             >
               Food
             </button>
-            <button
-              @click="entryTab = 'recipe'"
-              :class="[
-                'px-4 py-2 rounded-lg',
-                entryTab === 'recipe'
-                  ? 'bg-primary text-white'
-                  : 'bg-gray-100 text-gray-700',
-              ]"
-            >
-              Recipe
-            </button>
+          </div>
+          <div v-if="entryTab === 'favorite'">
+            <div class="relative mb-3">
+              <input
+                v-model="favoriteSearch"
+                @input="debounceSearchFavorites"
+                type="text"
+                placeholder="Search favorites..."
+                class="w-full pl-10 input-field"
+              />
+              <SearchIcon
+                class="w-5 h-5 text-gray-400 absolute left-3 top-3.5"
+              />
+            </div>
+
+            <div class="overflow-y-auto border rounded-lg max-h-60">
+              <div
+                v-for="favorite in filteredFavorites"
+                :key="favorite.id"
+                @click="selectFavorite(favorite)"
+                class="p-3 border-b border-gray-100 cursor-pointer hover:bg-gray-50"
+                :class="{
+                  'bg-primary/10': newEntry.favorite_id === favorite.id,
+                }"
+              >
+                <div class="flex justify-between">
+                  <span class="font-medium">{{
+                    favorite.food?.name || favorite.recipe?.title
+                  }}</span>
+                  <span class="text-sm text-gray-500"
+                    >{{
+                      favorite.food?.calories || favorite.recipe?.calories
+                    }}
+                    cal</span
+                  >
+                </div>
+                <div class="text-sm text-gray-500">
+                  {{
+                    favorite.food?.description || favorite.recipe?.description
+                  }}
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div v-if="entryTab === 'food'">
+          <div v-else="entryTab === 'food'">
             <div class="relative mb-3">
               <input
                 v-model="foodSearch"
@@ -118,39 +160,6 @@ h2
                   >
                 </div>
                 <div class="text-sm text-gray-500">{{ food.description }}</div>
-              </div>
-            </div>
-          </div>
-
-          <div v-else>
-            <div class="relative mb-3">
-              <input
-                v-model="recipeSearch"
-                @input="debounceSearchRecipes"
-                type="text"
-                placeholder="Search recipes..."
-                class="w-full pl-10 input-field"
-              />
-              <SearchIcon
-                class="w-5 h-5 text-gray-400 absolute left-3 top-3.5"
-              />
-            </div>
-
-            <div class="overflow-y-auto border rounded-lg max-h-60">
-              <div
-                v-for="recipe in filteredRecipes"
-                :key="recipe.id"
-                @click="selectRecipe(recipe)"
-                class="p-3 border-b border-gray-100 cursor-pointer hover:bg-gray-50"
-                :class="{ 'bg-primary/10': newEntry.recipe_id === recipe.id }"
-              >
-                <div class="flex justify-between">
-                  <span class="font-medium">{{ recipe.title }}</span>
-                  <span class="text-sm text-gray-500"
-                    >{{ recipe.prep_time + recipe.cook_time }} min</span
-                  >
-                </div>
-                <div class="text-sm text-gray-500">{{ recipe.food?.name }}</div>
               </div>
             </div>
           </div>
@@ -217,7 +226,10 @@ h2
           Cancel
         </Button>
         <Button @click="saveEntry" :disabled="!canSaveEntry">
-          Save Entry
+          <span v-if="loading" class="flex items-center justify-center">
+            Saving...
+          </span>
+          <span v-else>Save Entry</span>
         </Button>
       </template>
     </Modal>
@@ -230,7 +242,7 @@ h2
       </div>
 
       <!-- Empty State -->
-      <div v-else-if="diaryEntries.length === 0" class="py-12 text-center">
+      <div v-else-if="diaryByDate.length === 0" class="py-12 text-center">
         <div
           class="flex items-center justify-center w-24 h-24 mx-auto mb-6 bg-gray-100 rounded-full"
         >
@@ -469,12 +481,12 @@ const showDatePicker = ref(false);
 const tempSelectedDate = ref(new Date().toISOString().split('T')[0]);
 
 const showAddEntry = ref(false);
-const entryTab = ref('food'); // 'food' or 'recipe'
+const entryTab = ref('favorite'); // 'food' or 'recipe'
 const newEntry = ref({
   date: new Date().toISOString().split('T')[0],
   meal_type: 'breakfast',
+  favorite_id: null,
   food_id: null,
-  recipe_id: null,
   quantity: 1,
   exercise_type: '',
   exercise_duration: '',
@@ -482,8 +494,8 @@ const newEntry = ref({
 });
 
 // Search states
+const favoriteSearch = ref('');
 const foodSearch = ref('');
-const recipeSearch = ref('');
 
 // Computed properties
 const diaryEntries = computed(() => {
@@ -551,10 +563,25 @@ const canSaveEntry = computed(() => {
     return newEntry.value.exercise_type && newEntry.value.exercise_duration;
   } else {
     return (
-      (newEntry.value.food_id || newEntry.value.recipe_id) &&
+      (newEntry.value.food_id || newEntry.value.favorite_id) &&
       newEntry.value.quantity > 0
     );
   }
+});
+
+const filteredFavorites = computed(() => {
+  if (!favoriteSearch.value) return userStore.favorites.slice(0, 10);
+  return userStore.favorites
+    .filter(
+      (favorite) =>
+        favorite.name
+          .toLowerCase()
+          .includes(favoriteSearch.value.toLowerCase()) ||
+        favorite.description
+          ?.toLowerCase()
+          .includes(favoriteSearch.value.toLowerCase())
+    )
+    .slice(0, 10);
 });
 
 const filteredFoods = computed(() => {
@@ -564,19 +591,6 @@ const filteredFoods = computed(() => {
       (food) =>
         food.name.toLowerCase().includes(foodSearch.value.toLowerCase()) ||
         food.description?.toLowerCase().includes(foodSearch.value.toLowerCase())
-    )
-    .slice(0, 10);
-});
-
-const filteredRecipes = computed(() => {
-  if (!recipeSearch.value) return foodStore.recipes.slice(0, 10);
-  return foodStore.recipes
-    .filter(
-      (recipe) =>
-        recipe.title.toLowerCase().includes(recipeSearch.value.toLowerCase()) ||
-        recipe.food?.name
-          ?.toLowerCase()
-          .includes(recipeSearch.value.toLowerCase())
     )
     .slice(0, 10);
 });
@@ -599,7 +613,7 @@ const addEntry = () => {
     date: selectedDate.value,
     meal_type: 'breakfast',
     food_id: null,
-    recipe_id: null,
+    favorite_id: null,
     quantity: 1,
     exercise_type: '',
     exercise_duration: '',
@@ -608,14 +622,14 @@ const addEntry = () => {
   showAddEntry.value = true;
 };
 
-const selectFood = (food) => {
-  newEntry.value.food_id = food.id;
-  newEntry.value.recipe_id = null;
+const selectFavorite = (favorite) => {
+  newEntry.value.favorite_id = favorite.id;
+  newEntry.value.food_id = null;
 };
 
-const selectRecipe = (recipe) => {
-  newEntry.value.recipe_id = recipe.id;
-  newEntry.value.food_id = null;
+const selectFood = (food) => {
+  newEntry.value.food_id = food.id;
+  newEntry.value.favorite_id = null;
 };
 
 // ✅ PERBAIKAN: Save entry ke database
@@ -633,7 +647,6 @@ const saveEntry = async () => {
     // Hapus field yang tidak diperlukan berdasarkan meal_type
     if (entryData.meal_type === 'exercise') {
       delete entryData.food_id;
-      delete entryData.recipe_id;
       delete entryData.quantity;
     } else {
       delete entryData.exercise_type;
@@ -651,7 +664,7 @@ const saveEntry = async () => {
         date: selectedDate.value,
         meal_type: 'breakfast',
         food_id: null,
-        recipe_id: null,
+        favorite_id: null,
         quantity: 1,
         exercise_type: '',
         exercise_duration: '',
@@ -675,11 +688,15 @@ const deleteEntry = async (entryId) => {
   if (confirm('Are you sure you want to delete this entry?')) {
     loading.value = true;
     try {
+      // ✅ PERBAIKAN: Delete entry dan refresh semua data
       const result = await userStore.deleteDiaryEntry(entryId);
 
       if (result.success) {
-        // Refresh data
-        await fetchDiaryEntries();
+        // ✅ PERBAIKAN: Refresh entries dan summary setelah delete
+        await Promise.all([
+          fetchDiaryEntries(),
+          userStore.fetchDailySummary(selectedDate.value),
+        ]);
       } else {
         console.error('Failed to delete entry:', result.error);
       }
@@ -720,6 +737,7 @@ const fetchDiaryEntries = async () => {
       userStore.fetchDailySummary(selectedDate.value),
       foodStore.fetchFoods(),
       foodStore.fetchRecipes(),
+      userStore.fetchFavorites(),
     ]);
   } catch (error) {
     console.error('Failed to fetch diary entries:', error);
@@ -728,15 +746,14 @@ const fetchDiaryEntries = async () => {
   }
 };
 
-const debounceSearch = debounce(() => {
+const debounceSearchFavorites = debounce(() => {
+  if (favoriteSearch.value) {
+    userStore.searchFavorites(favoriteSearch.value);
+  }
+});
+const debounceSearchFoods = debounce(() => {
   if (foodSearch.value) {
     foodStore.searchFoods(foodSearch.value);
-  }
-}, 300);
-
-const debounceSearchRecipes = debounce(() => {
-  if (recipeSearch.value) {
-    foodStore.fetchRecipes({ search: recipeSearch.value });
   }
 }, 300);
 
@@ -756,12 +773,6 @@ const clearFilters = () => {
     servings: '',
   };
   showFilters.value = false;
-  fetchRecipes();
-};
-
-const applyFilters = () => {
-  showFilters.value = false;
-  page.value = 1;
   fetchRecipes();
 };
 
@@ -787,9 +798,5 @@ watch(selectedDate, () => {
 
 watch(foodSearch, () => {
   debounceSearch();
-});
-
-watch(recipeSearch, () => {
-  debounceSearchRecipes();
 });
 </script>

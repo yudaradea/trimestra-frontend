@@ -309,6 +309,18 @@ export const useUserStore = defineStore('user', () => {
     }
   };
 
+  const searchFavorites = async (query) => {
+    try {
+      const response = await api.get('/favorites/search', {
+        params: { q: query },
+      });
+      favorites.value = response.data.data.data || [];
+      return favorites.value;
+    } catch (error) {
+      console.error('Failed to search favorites:', error);
+      return [];
+    }
+  };
   const addFavorite = async (favoriteData) => {
     try {
       const response = await api.post('/favorites', favoriteData);
@@ -343,6 +355,10 @@ export const useUserStore = defineStore('user', () => {
       if (response.data.success) {
         diaryEntries.value =
           response.data.data.entries || response.data.data || [];
+
+        if (response.data.data.summary) {
+          dailySummary.value = response.data.data.summary;
+        }
         return { success: true, data: diaryEntries.value };
       } else {
         return { success: false, error: response.data.message };
@@ -385,6 +401,9 @@ export const useUserStore = defineStore('user', () => {
         // Refresh diary entries dan summary
         await fetchDiaryEntries();
         await fetchDailySummary(new Date().toISOString().split('T')[0]);
+        diaryEntries.value = diaryEntries.value.filter(
+          (entry) => entry.id !== entryId
+        );
 
         return { success: true };
       } else {
@@ -441,6 +460,7 @@ export const useUserStore = defineStore('user', () => {
     updatePreferences,
     fetchFavorites,
     addFavorite,
+    searchFavorites,
     removeFavorite,
     fetchDailySummary,
     fetchRecentDiaryEntries,

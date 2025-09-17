@@ -1,4 +1,3 @@
-// src/stores/food.js
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import api from '@/utils/api';

@@ -68,14 +68,14 @@
             </div>
 
             <!-- Modal body -->
-            <div class="px-4 pb-4 sm:px-6 sm:pb-6">
+            <div class="px-4 sm:px-6">
               <slot />
             </div>
 
             <!-- Modal footer -->
             <div
               v-if="$slots.footer"
-              class="gap-4 px-4 py-3 space-x-2 border-t border-gray-200 sm:px-6 sm:flex sm:flex-row-reverse"
+              class="gap-4 px-4 py-3 space-x-2 text-right border-t border-gray-200"
             >
               <slot name="footer" />
             </div>
